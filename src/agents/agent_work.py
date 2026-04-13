@@ -1,3 +1,4 @@
+import autogen
 from src.agents.prompts import (
     DATA_LOADER_PROMPT,
     DATA_CLEANER_PROMPT,
