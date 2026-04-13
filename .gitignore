@@ -1,0 +1,14 @@
+# Environments
+.env
+.venv/
+venv/
+__pycache__/
+
+# AutoGen / Data artifacts / t_workspace/
+*.csv
+*.png
+*.log
+
+# IDEs
+.vscode/
+.idea/
