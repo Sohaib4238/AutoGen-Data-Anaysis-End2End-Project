@@ -1,0 +1,7 @@
+# filename: script.py
+import pandas as pd
+
+df = pd.read_csv('sample.csv')
+print(df.head())
+print(df.info())
+print(df.describe())

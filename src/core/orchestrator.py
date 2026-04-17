@@ -6,7 +6,7 @@ import os
 import logging
 import autogen
 from dotenv import load_dotenv
-from src.agents.agent_work import AgentFactory
+from src.agents.agent_work import AgentWork
 from src.core.executer import get_docker_executor
 
 logging.basicConfig(
@@ -25,9 +25,11 @@ class DataAnalyzerPipeline:
         
         self.llm_config = {
             "config_list": [{
-                "model": "llama-3.1-70b-versatile", 
-                "api_key": os.environ.get("GROQ_API_KEY"),
-                "base_url": "https://api.groq.com/openai/v1"
+                # Using the newest active Gemini model
+                "model": "gemini-2.5-flash", 
+                "api_key": os.environ.get("GEMINI_API_KEY"),
+                # This secret URL routes the OpenAI client directly to Google!
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/" 
             }],
             "temperature": 0.1,
         }
@@ -42,7 +44,7 @@ class DataAnalyzerPipeline:
             self.executor, self.work_dir = get_docker_executor()
 
             logger.info("Instantiating AI Agent Team via Factory...")
-            factory = AgentFactory(self.llm_config)
+            factory = AgentWork(self.llm_config)
             team = factory.create_data_team()
 
             admin_proxy = autogen.UserProxyAgent(
@@ -53,7 +55,37 @@ class DataAnalyzerPipeline:
                 max_consecutive_auto_reply=15,
             )
 
-            logger.info("Configuring Round Robin Group Chat...")
+            logger.info("Configuring State Machine Group Chat...")
+            
+            # --- THE ENTERPRISE ROUTER ---
+            def state_machine_router(last_speaker, groupchat):
+                """Forces a strict sequential pipeline and guarantees Docker execution."""
+                messages = groupchat.messages
+                
+                # Rule 0: If it is the very first message from Admin, start with DataLoader.
+                if len(messages) == 1:
+                    return team["loader"]
+                
+                # Rule 1: If an AI agent just wrote code, the Admin MUST execute it next.
+                ai_coders = [team["loader"], team["cleaner"], team["engineer"], team["analyzer"], team["visualizer"]]
+                if last_speaker in ai_coders:
+                    return admin_proxy
+                
+                # Rule 2: If the Admin just executed code, figure out who goes next.
+                if last_speaker == admin_proxy:
+                    if len(messages) >= 2:
+                        prev_speaker = messages[-2]["name"]
+                        if prev_speaker == "DataLoader": return team["cleaner"]
+                        if prev_speaker == "DataCleaner": return team["engineer"]
+                        if prev_speaker == "FeatureEngineer": return team["analyzer"]
+                        if prev_speaker == "DataAnalyzer": return team["visualizer"]
+                        if prev_speaker == "Visualizer": return team["reporter"]
+                
+                # Rule 3: If the reporter finishes, end the chat.
+                if last_speaker == team["reporter"]:
+                    return None 
+            # -----------------------------
+
             groupchat = autogen.GroupChat(
                 agents=[
                     admin_proxy,
@@ -65,8 +97,8 @@ class DataAnalyzerPipeline:
                     team["reporter"]
                 ],
                 messages=[],
-                max_round=20, 
-                speaker_selection_method="round_robin"
+                max_round=20,
+                speaker_selection_method=state_machine_router # <--- Inject the custom logic here
             )
 
             manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=self.llm_config)

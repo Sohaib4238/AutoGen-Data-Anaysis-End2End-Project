@@ -9,6 +9,7 @@ You are the DataLoader Agent. Your ONLY job is to write Python code to load the 
 3. Print the `head()`, `info()`, and `describe()` of the dataframe so the next agents understand the data structure.
 4. Do NOT attempt to clean or analyze the data. Only load and inspect it.
 Output your code in a standard ```python ``` code block.
+CRITICAL: The very first line inside your code block MUST be exactly `# filename: script.py`. Do not put any other comments before this. This is how the system identifies your code for execution.
 """
 
 DATA_CLEANER_PROMPT = """
